@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+  <script src="./js/vue.global.js"></script>
+  <!-- 引入样式 -->
+  <link rel="stylesheet" href="//unpkg.com/element-plus/dist/index.css" />
+  <!-- 引入组件库 -->
+  <script src="//unpkg.com/element-plus"></script>
+  <title>Document</title>
+  <style>
+    *{
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+<div>
+  <button id="begin">Begin</button>
+  <button id="color-button" style="color:blue">Try to change my color!</button>
+  <div id="result"></div>
+
+
+  <h2>ref函数是定义一个响应式的数据</h2>
+
+  <br/>
+  <h2>reactive函数是定义一个对象类型的响应式数据(基本类型不要用它，要用ref函数)</h2>
+  <div id="app">
+    {{ message }}
+    <el-button type="primary" @click="initStart">启动主线程</el-button>
+    <el-card class="box-card">
+      <template #header>
+        <div class="card-header">
+          <span>Card name</span>
+          <el-button class="button" text>Operation button</el-button>
+        </div>
+      </template>
+      {{list}}<br/>
+      {{item}}
+      <div v-for="o in list.item" :key="o.id" class="text item">
+        ------ {{ o }}
+      </div>
+    </el-card>
+  </div>
+</div>
+<script>
+  function onError(e) {
+    console.log('Line: ' + e.lineno);
+    console.log('In: ' + e.filename);
+    console.log('Message: ' + e.message);
+  }
+
+  /*var work = new Worker('./js/worker.js');
+  console.log('这里是主线程：')
+  work.postMessage('son hello!')
+  work.onmessage = function (event) {
+    console.log('Received msg:' + event.data);
+    // work.terminate(); 关闭该线程
+  }*/
+
+
+  /*Worker.onerror：指定 error 事件的监听函数。
+  Worker.onmessage：指定 message 事件的监听函数，发送过来的数据在Event.data属性中。
+  Worker.onmessageerror：指定 messageerror 事件的监听函数。发送的数据无法序列化成字符串时，会触发这个事件。
+  Worker.postMessage()：向 Worker 线程发送消息。
+  Worker.terminate()：立即终止 Worker 线程*/
+
+
+
+
+  // vue初始化
+  const { createApp, ref, reactive, toRefs } = Vue
+
+  const app = createApp({
+    setup() {
+
+      const message = ref('Hello Vue!')
+      const list = reactive({
+        item: [],
+        arr: [1,6,7]
+      })
+
+      // 主线程初始化
+      const initStart = () => {
+
+        var worker = new Worker('./js/worker.js');
+        console.log('这里是主线程：',worker,document.getElementById('result'))
+        // api(8)
+        worker.postMessage('主线程回给子线程值');
+        worker.onmessage = function (event) {
+          console.log('---主线程打印onmessage---', event.data)
+          // document.getElementById('result').textContent = JSON.stringify(event.data);
+          console.log(list.item)
+          list.item = [...list.item,...event.data]
+        };
+
+        // 错误监听
+        worker.onmessageerror = function (event) {
+          console.log('---onmessageerror---', event)
+        }
+      }
+
+      /**
+       * 主线程ajax
+       */
+
+      function api (data) {
+        $.ajax({
+          url: 'http://127.0.0.1:5000',
+          method: 'get',
+          data: {
+            username: 'zhansan',
+            password: '123456'
+          },
+          success(res) {
+            console.log('---res---', res)
+            list.item.push(res.data)
+          }
+        })
+      }
+      api(2)
+
+      // reactive 直接赋值会失去响应式
+      // script setup 语法糖中reactive + toRefs+解构如何优雅呈现
+      const { item, arr } = toRefs(list)
+
+      return {
+        message,
+        list,
+        item,
+        initStart
+      }
+    }
+    // data() {
+    //   return {
+    //     message: 'Hello Vue!',
+    //     list: []
+    //   }
+    // },
+    //
+    // methods: {
+    //   webWorkInit () {
+    //     // 主线程初始化
+    //     var worker = new Worker('./js/worker.js');
+    //     console.log('这里是主线程：',worker,document.getElementById('result'))
+    //     // api(8)
+    //     worker.postMessage('主线程回传值');
+    //     worker.onmessage = function (event) {
+    //       console.log('---主线程打印onmessage---', event.data)
+    //       document.getElementById('result').textContent = JSON.stringify(event.data);
+    //     };
+    //
+    //     worker.onmessageerror = function (event) {
+    //       console.log('---onmessageerror---', event)
+    //     }
+    //   }
+    // }
+  })
+
+  app.use(ElementPlus)
+  app.mount('#app')
+
+</script>
+</body>
+</html>
